@@ -46,6 +46,16 @@ impl CodeGen {
         }
     }
 
+    fn get_address(&mut self, segment: &Segment, index: &u16) -> Result<String> {
+        Ok(
+            if let Segment::Static = segment {
+                self.get_static_variable(index)
+            } else {
+                segment.to_address()?.to_string()
+            }
+        )
+    }
+
     fn gen_stack_block(&mut self, token: &StackToken) -> Result<Vec<String>> {
         match token {
             StackToken::Push{segment, index} => {
@@ -58,11 +68,7 @@ impl CodeGen {
                         asm.push(format!("D=A"));
                     },
                     _ => {
-                        let address = if let Segment::Static = segment {
-                            self.get_static_variable(index)
-                        } else {
-                            segment.to_address()?.to_string()
-                        };
+                        let address = self.get_address(segment, index)?;
 
                         // offset segment by index
                         asm.push(format!("@{}", index));
@@ -84,7 +90,6 @@ impl CodeGen {
                     },
                 };
 
-
                 asm.push(format!("@SP"));
                 asm.push(format!("A=M"));
                 asm.push(format!("M=D"));
@@ -99,12 +104,7 @@ impl CodeGen {
                     _ => {
                         let mut asm = Vec::new();
                         let dest = self.get_variable();
-
-                        let address = if let Segment::Static = segment {
-                            self.get_static_variable(index)
-                        } else {
-                            segment.to_address()?.to_string()
-                        };
+                        let address = self.get_address(segment, index)?;
 
                         // get segment + index and load value into "dest"
                         asm.push(format!("@{}", index));
