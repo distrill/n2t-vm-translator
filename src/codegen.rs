@@ -120,7 +120,6 @@ impl CodeGen {
                             _ => {
                                 asm.push(format!("A=M"));
                             },
-
                         }
                         asm.push(format!("D=D+A"));
                         asm.push(format!("@{}", dest));
@@ -192,6 +191,7 @@ impl CodeGen {
         let done = self.get_jmp_token();
 
         let mut asm = Vec::new();
+
         // load 1st number into D
         asm.push(format!("@SP"));
         asm.push(format!("M=M-1"));
