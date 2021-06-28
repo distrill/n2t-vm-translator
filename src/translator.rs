@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs::{self, File},
     io::{BufRead, BufReader},
     path::Path,
@@ -31,7 +32,10 @@ impl Translator {
         for line in &self.src {
             &self.parser.process_line(line)?;
         }
-        &self.parser.debug();
+        match env::var("DEBUG") {
+            Ok(_) => &self.parser.debug(),
+            Err(_) => &{},
+        };
         Ok(())
     }
 
