@@ -16,23 +16,24 @@ pub struct CodeGen {
     jmps: u8,
     vs: u8,
     statics: HashMap<u16, String>,
+    filename: String,
 }
 
 impl CodeGen {
-    pub fn new() -> CodeGen {
-        CodeGen{ jmps: 0, vs: 0, statics: HashMap::new() }
+    pub fn new(filename: String) -> CodeGen {
+        CodeGen{ jmps: 0, vs: 0, statics: HashMap::new(), filename }
     }
 
     fn get_jmp_token(&mut self) -> String {
         let jmp_id = self.jmps;
         self.jmps += 1;
-        format!("JMP_{}", jmp_id)
+        format!("JMP_{}_{}", &self.filename, jmp_id)
     }
 
     fn get_variable(&mut self) -> String {
         let v_id = self.vs;
         self.vs += 1;
-        format!("V_{}", v_id)
+        format!("V_{}_{}", &self.filename, v_id)
     }
 
     fn get_static_variable(&mut self, index: &u16) -> String {

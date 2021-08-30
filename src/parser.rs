@@ -41,10 +41,6 @@ impl Segment {
             Segment::Constant => Err(anyhow!("constant does not have an address")),
         }
     }
-
-    // pub fn static_address<'a>(&self, cg: &mut CodeGen) -> Result<&'a str> {
-    //     
-    // }
 }
 
 #[derive(Debug)]
@@ -140,14 +136,16 @@ pub struct Parser {
     lines: Vec<Line>,
     pub asm: Vec<Asm>,
     cg: CodeGen,
+    filename: String,
 }
 
 impl Parser {
-    pub fn new() -> Parser {
+    pub fn new(filename: String) -> Parser {
         Parser {
             lines: Vec::new(),
             asm: Vec::new(),
-            cg: CodeGen::new(),
+            cg: CodeGen::new(filename.clone()),
+            filename,
         }
     }
 

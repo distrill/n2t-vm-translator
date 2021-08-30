@@ -2,7 +2,7 @@ use std::{
     env,
     fs::{self, File},
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path},
 };
 
 use anyhow::{Result};
@@ -16,14 +16,16 @@ pub struct Translator {
 }
 
 impl Translator {
-    pub fn new(filename: &impl AsRef<Path>) -> Result<Translator> {
+    pub fn new(filename: &str) -> Result<Translator> {
 	let file = File::open(filename)?;
 	let buf = BufReader::new(file);
 	let src = buf.lines()
 	    .map(|l| l.expect("Could not parse line"))
 	    .collect();
 
-        let parser = Parser::new();
+        let stemmed = Path::new(filename).file_stem().unwrap();
+        let trimmed = Path::new(stemmed).file_name().unwrap();
+        let parser = Parser::new(format!("{}", trimmed.to_str().unwrap()));
 
         Ok(Translator{ src, parser })
     }
