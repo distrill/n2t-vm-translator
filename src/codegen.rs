@@ -3,12 +3,8 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Result};
 
 use crate::parser::{
-    Line,
-    Segment,
+    BinaryToken, BranchToken, ComparisonToken, Line, Segment, StackToken,
     UnaryToken,
-    BinaryToken,
-    ComparisonToken,
-    StackToken,
 };
 
 #[derive(Debug)]
@@ -21,7 +17,12 @@ pub struct CodeGen {
 
 impl CodeGen {
     pub fn new(filename: String) -> CodeGen {
-        CodeGen{ jmps: 0, vs: 0, statics: HashMap::new(), filename }
+        CodeGen {
+            jmps: 0,
+            vs: 0,
+            statics: HashMap::new(),
+            filename,
+        }
     }
 
     fn get_jmp_token(&mut self) -> String {
@@ -41,25 +42,27 @@ impl CodeGen {
             Some(v) => v.to_string(),
             None => {
                 let v = self.get_variable();
-                &self.statics.insert(*index, v.to_string());
+                self.statics.insert(*index, v.to_string());
                 v
-            },
+            }
         }
     }
 
-    fn get_address(&mut self, segment: &Segment, index: &u16) -> Result<String> {
-        Ok(
-            if let Segment::Static = segment {
-                self.get_static_variable(index)
-            } else {
-                segment.to_address()?.to_string()
-            }
-        )
+    fn get_address(
+        &mut self,
+        segment: &Segment,
+        index: &u16,
+    ) -> Result<String> {
+        Ok(if let Segment::Static = segment {
+            self.get_static_variable(index)
+        } else {
+            segment.to_address()?.to_string()
+        })
     }
 
     fn gen_stack_block(&mut self, token: &StackToken) -> Result<Vec<String>> {
         match token {
-            StackToken::Push{segment, index} => {
+            StackToken::Push { segment, index } => {
                 let mut asm = Vec::new();
 
                 match segment {
@@ -67,7 +70,7 @@ impl CodeGen {
                         // use index directly
                         asm.push(format!("@{}", index));
                         asm.push(format!("D=A"));
-                    },
+                    }
                     _ => {
                         let address = self.get_address(segment, index)?;
 
@@ -81,14 +84,13 @@ impl CodeGen {
                         match segment {
                             Segment::Temp | Segment::Pointer => {
                                 asm.push(format!("A=D+A"));
-                            },
+                            }
                             _ => {
                                 asm.push(format!("A=D+M"));
-                            },
-
+                            }
                         }
                         asm.push(format!("D=M"));
-                    },
+                    }
                 };
 
                 asm.push(format!("@SP"));
@@ -98,8 +100,8 @@ impl CodeGen {
                 asm.push(format!("M=M+1"));
 
                 Ok(asm)
-            },
-            StackToken::Pop{segment, index} => {
+            }
+            StackToken::Pop { segment, index } => {
                 match segment {
                     Segment::Constant => Err(anyhow!("cannot pop constant")),
                     _ => {
@@ -113,14 +115,14 @@ impl CodeGen {
                         asm.push(format!("@{}", address));
 
                         // temp and pointers are fixed, there is no variable
-                        // to look up and load value from 
+                        // to look up and load value from
                         match segment {
                             Segment::Temp | Segment::Pointer => {
                                 //  wink
-                            },
+                            }
                             _ => {
                                 asm.push(format!("A=M"));
-                            },
+                            }
                         }
                         asm.push(format!("D=D+A"));
                         asm.push(format!("@{}", dest));
@@ -138,9 +140,9 @@ impl CodeGen {
                         asm.push(format!("M=D"));
 
                         Ok(asm)
-                    },
+                    }
                 }
-            },
+            }
         }
     }
 
@@ -180,7 +182,10 @@ impl CodeGen {
         Ok(asm)
     }
 
-    fn gen_comparison_block(&mut self, token: &ComparisonToken) -> Result<Vec<String>> {
+    fn gen_comparison_block(
+        &mut self,
+        token: &ComparisonToken,
+    ) -> Result<Vec<String>> {
         let cnd_jmp = match token {
             ComparisonToken::Equal => "JEQ",
             ComparisonToken::GreaterThan => "JGT",
@@ -211,23 +216,48 @@ impl CodeGen {
 
         // set D=-1 if numbers were equal
         asm.push(format!("({})", if_match));
-        asm.push(format!("    @0"));
-        asm.push(format!("    D=A-1"));
-        asm.push(format!("    @{}", done));
-        asm.push(format!("    0; JMP"));
+        asm.push(format!("@0"));
+        asm.push(format!("D=A-1"));
+        asm.push(format!("@{}", done));
+        asm.push(format!("0; JMP"));
 
         // set D=0 if numbers were not equal
         asm.push(format!("({})", if_not_match));
-        asm.push(format!("    @0"));
-        asm.push(format!("    D=A"));
+        asm.push(format!("@0"));
+        asm.push(format!("D=A"));
 
         // set @SP-1 = D
         asm.push(format!("({})", done));
-        asm.push(format!("    @SP"));
-        asm.push(format!("    A=M"));
-        asm.push(format!("    A=A-1"));
-        asm.push(format!("    M=D"));
+        asm.push(format!("@SP"));
+        asm.push(format!("A=M"));
+        asm.push(format!("A=A-1"));
+        asm.push(format!("M=D"));
 
+        Ok(asm)
+    }
+
+    fn gen_branch_block(&mut self, token: &BranchToken) -> Result<Vec<String>> {
+        let mut asm = Vec::new();
+        match token {
+            BranchToken::Label(label) => {
+                asm.push(format!("({})", label));
+            }
+            BranchToken::GoTo(label) => {
+                asm.push(format!("@{}", label));
+                asm.push(format!("0; JMP"));
+            }
+            BranchToken::IfGoTo(label) => {
+                // pop value off stack
+                asm.push(format!("@SP"));
+                asm.push(format!("M=M-1"));
+                asm.push(format!("A=M"));
+                asm.push(format!("D=M"));
+
+                // jump if not {false, equal 0}
+                asm.push(format!("@{}", label));
+                asm.push(format!("D; JNE"));
+            }
+        };
         Ok(asm)
     }
 
@@ -237,6 +267,7 @@ impl CodeGen {
             Line::Unary(token) => self.gen_unary_block(token),
             Line::Binary(token) => self.gen_binary_block(token),
             Line::Comparison(token) => self.gen_comparison_block(token),
+            Line::Branch(token) => self.gen_branch_block(token),
         }
     }
 }

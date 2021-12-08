@@ -2,10 +2,10 @@ use std::{
     env,
     fs::{self, File},
     io::{BufRead, BufReader},
-    path::{Path},
+    path::Path,
 };
 
-use anyhow::{Result};
+use anyhow::Result;
 
 use crate::parser::Parser;
 
@@ -17,22 +17,23 @@ pub struct Translator {
 
 impl Translator {
     pub fn new(filename: &str) -> Result<Translator> {
-	let file = File::open(filename)?;
-	let buf = BufReader::new(file);
-	let src = buf.lines()
-	    .map(|l| l.expect("Could not parse line"))
-	    .collect();
+        let file = File::open(filename)?;
+        let buf = BufReader::new(file);
+        let src = buf
+            .lines()
+            .map(|l| l.expect("Could not parse line"))
+            .collect();
 
         let stemmed = Path::new(filename).file_stem().unwrap();
         let trimmed = Path::new(stemmed).file_name().unwrap();
         let parser = Parser::new(format!("{}", trimmed.to_str().unwrap()));
 
-        Ok(Translator{ src, parser })
+        Ok(Translator { src, parser })
     }
 
     pub fn process(&mut self) -> Result<()> {
         for line in &self.src {
-            &self.parser.process_line(line)?;
+            self.parser.process_line(line)?;
         }
         match env::var("DEBUG") {
             Ok(_) => &self.parser.debug(),
@@ -41,7 +42,6 @@ impl Translator {
         Ok(())
     }
 
-   
     pub fn write_bin(&self, binname: &String) -> Result<()> {
         let mut buf = "".to_string();
 
@@ -55,7 +55,7 @@ impl Translator {
         }
 
         fs::write(binname, buf)?;
-    
+
         Ok(())
-    } 
+    }
 }

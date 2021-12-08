@@ -2,9 +2,9 @@ use std::env;
 
 use anyhow::{anyhow, Result};
 
+mod codegen;
 mod parser;
 mod translator;
-mod codegen;
 
 use translator::Translator;
 
@@ -21,10 +21,7 @@ impl Config {
         }
         let srcname = args[1].clone();
         if !srcname.ends_with(".vm") {
-            return Err(anyhow!(
-                "file must bevm file. (provided: {})",
-                srcname,
-            ));
+            return Err(anyhow!("file must be vm file. (provided: {})", srcname,));
         }
 
         let binname = srcname.replace(".vm", ".asm");
@@ -32,9 +29,7 @@ impl Config {
     }
 }
 
-
-
-fn main() -> Result<()>  {
+fn main() -> Result<()> {
     let config = Config::parse(env::args().collect())?;
     let mut translator = Translator::new(&config.srcname)?;
 
@@ -42,6 +37,6 @@ fn main() -> Result<()>  {
     translator.process()?;
     translator.write_bin(&config.binname)?;
     println!("written to {}", &config.binname);
-    
+
     Ok(())
 }
